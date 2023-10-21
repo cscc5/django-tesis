@@ -2,12 +2,16 @@ import time
 import platform
 import pandas as pd
 from selenium import webdriver
+from fake_useragent import UserAgent
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from fake_useragent import UserAgent
-class Data_extract():
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+class DataExtract():
+
     """
     Clase para extraer datos de perfiles de trabajo utilizando Selenium.
 
@@ -26,123 +30,120 @@ class Data_extract():
     - obtener_perfiles_paginados(dato, num, xpath): Obtiene perfiles de trabajo en varias páginas web.
     """
 
+    timeout = 30
+
     def __init__(self, link):
-        """
-        Constructor de la clase Data_extract.
 
-        Parámetros:
-        - link (str): El enlace (URL) para la navegación web.
-
-        Return: No devuelve ningún valor.
-        """
         self.link = link
-        
-        # Configuración del servicio de Selenium WebDriver en función del sistema operativo
+
         if platform.system() == "Windows":
             ua = UserAgent()
             user_agent = ua.random
             chrome_options = Options()
+            chrome_options.add_argument("--start-maximized")
             chrome_options.add_argument(f"--user-agent={user_agent}")
-            chrome_options.add_argument ('--headless') 
+            chrome_options.add_argument ('--headless')
             self.servicio = Service(executable_path=r".\main_app\chromedriver.exe")
         else:
-            self.servicio = Service(executable_path="/usr/local/bin/chromedriver")
+            ua = UserAgent()
+            user_agent = ua.random
+            chrome_options = Options()
+            chrome_options.add_argument("--start-maximized")
+            chrome_options.add_argument(f"--user-agent={user_agent}")
+            chrome_options.add_argument ('--headless')
+            self.servicio = Service(executable_path="/home/cscc/Documents/Projects/Trabajo-de-grado/media/chromedriver-linux64/chromedriver")
 
-        # Inicialización del controlador de Chrome
         self.driver = webdriver.Chrome(service=self.servicio,options=chrome_options)
-    
+
     def ingresar_link(self):
-        """
-        Abre el enlace en el navegador web.
-
-        Return: No devuelve ningún valor.
-        """
         return self.driver.get(self.link)
-    
+
     def busqueda_xpath(self, dato):
-        """
-        Busca un elemento en la página web utilizando XPath.
-
-        Parámetros:
-        - dato (str): La expresión XPath utilizada para ubicar el elemento.
-
-        Return: Un objeto que representa el elemento web encontrado.
-        """
-        return self.driver.find_element(By.XPATH, dato)
+        try:
+            element = WebDriverWait(self.driver, DataExtract.timeout).until(
+                EC.presence_of_element_located((By.XPATH, dato))
+            )
+            return element
+        except Exception as e:
+            print(f"Error al buscar el elemento con XPATH '{dato}': {str(e)}")
+            return None
     
     def busqueda_id(self, dato):
-        """
-        Busca un elemento en la página web utilizando su atributo de identificación (ID).
+        try:
+            element = WebDriverWait(self.driver, DataExtract.timeout).until(
+                EC.presence_of_element_located((By.ID, dato))
+            )
+            return element
+        except Exception as e:
+            print(f"Error al buscar el elemento con ID '{dato}': {str(e)}")
+            return None
 
-        Parámetros:
-        - dato (str): El valor del atributo de identificación (ID) utilizado para ubicar el elemento.
+    def scroll_down(self, dato):
+        previous_scroll_position = 0
+        
+        while True:
+            try:
+                element = WebDriverWait(self.driver, DataExtract.timeout).until(
+                    EC.presence_of_element_located((By.XPATH, dato))
+                )
+                element.send_keys(Keys.END)
+                time.sleep(3)
+                current_scroll_position = self.driver.execute_script("return window.pageYOffset;")
+                if current_scroll_position == previous_scroll_position:
+                    break
 
-        Return: Un objeto que representa el elemento web encontrado.
-        """
-        return self.driver.find_element(By.ID, dato)
-    
-    def scroll_down(self, num, dato):
-        """
-        Desplaza hacia abajo en la página web un número específico de veces.
-
-        Parámetros:
-        - num (int): El número de veces que se realizará el desplazamiento hacia abajo.
-        - dato (str): La expresión XPath utilizada para ubicar el elemento donde se realizará el desplazamiento.
-
-        Return: No devuelve ningún valor.
-        """
-        for i in range(num):
-            self.driver.find_element(By.XPATH, dato).send_keys(Keys.END)
-            time.sleep(2)
+                previous_scroll_position = current_scroll_position
+            except Exception as e:
+                print(f"Error al desplazar en la página: {str(e)}")
+                break
 
     def Obtener_perfiles(self, title, company, location):
-        """
-        Obtiene información de perfiles de trabajo (título, empresa, ubicación).
-
-        Parámetros:
-        - title (str): La clase de elemento HTML que representa el título del trabajo.
-        - company (str): La clase de elemento HTML que representa la empresa del trabajo.
-        - location (str): La clase de elemento HTML que representa la ubicación del trabajo.
-
-        Return: No devuelve ningún valor. Los datos extraídos se almacenan en las listas self.title, self.company y self.location.
-        """
         self.title = [element.text for element in self.driver.find_elements(By.CLASS_NAME, title)]
         self.location = [element.text for element in self.driver.find_elements(By.CLASS_NAME, location)]
         self.company = [element.text for element in self.driver.find_elements(By.CLASS_NAME, company)]
-
-    def Guardar_df(self):
-        """
-        Guarda los datos extraídos en un DataFrame de Pandas y luego los exporta a un archivo CSV.
-
-        Parámetros:
-        - name (str): El nombre del archivo CSV en el que se guardarán los datos.
-
-        Return: No devuelve ningún valor.
-        """
+     
+    def Guardar_perfiles(self):
         df_jobs = pd.DataFrame({'title': self.title, 'location': self.location, 'company': self.company})
-        return df_jobs.to_json(orient='split')
-    
-    def Cerrar_drive(self):
-        """
-        Cierra el controlador del navegador.
-
-        Return: No devuelve ningún valor.
-        """
-        self.driver.close()
+        return df_jobs.to_json(orient='split', index=False)
     
     def obtener_perfiles_paginados(self, dato, num, xpath):
-        """
-        Obtiene perfiles de trabajo en varias páginas web.
-
-        Parámetros:
-        - dato (str): La clase de elemento HTML que se extraerá de cada página.
-        - num (int): El número de páginas que se recorrerán.
-        - xpath (str): La expresión XPath que se utilizará para hacer clic en el botón de paginación.
-
-        Return: No devuelve ningún valor. Los datos extraídos se almacenan en la lista self.text_list.
-        """
         self.text_list = [[element.text for element in self.driver.find_elements(By.CLASS_NAME, dato)]]
         for i in range(num):
             self.busqueda_xpath(xpath).click()
             time.sleep(4)
             self.text_list.append([element.text for element in self.driver.find_elements(By.CLASS_NAME, dato)])
+            
+    def Guardar_perfiles_paginados(self):
+        df_jobs = pd.DataFrame(self.text_list)
+        return df_jobs.to_json(orient="split", index=False)
+        
+    def switch_screen(self, num):
+        return self.driver.switch_to.window(self.driver.window_handles[num])
+
+    def Cerrar_drive(self):
+        try:
+            self.driver.close()
+        except Exception as e:
+            print(f"Error al cerrar el navegador de manera segura: {str(e)}")
+
+    def scroll_down_smoothly(self):
+        script = "window.scrollBy(0, 1000);"
+        
+        while True:
+            try:
+                self.driver.execute_script(script)
+                time.sleep(2)
+                if self.driver.execute_script("return (window.innerHeight + window.scrollY) >= document.body.scrollHeight;"):
+                    break
+            except Exception as e:
+                print(f"Error al realizar un desplazamiento suave hacia abajo: {str(e)}")
+                break
+
+    def click_banner_button(self, xpath):
+        try:
+            element = WebDriverWait(self.driver, DataExtract.timeout).until(
+                EC.element_to_be_clickable((By.XPATH, xpath))
+            )
+            element.click()
+        except Exception as e:
+            print(f"Error al hacer clic en el botón del banner: {str(e)}")

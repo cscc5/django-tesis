@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -40,7 +41,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'main_app',
     'rest_framework'
-
 ]
 
 MIDDLEWARE = [
@@ -129,4 +129,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = []
 
+# Ubicación de los archivos multimedia
+#MEDIA_ROOT = os.path.join(BASE_DIR, '/home/cscc/Documents/Proyects/Trabajo-de-grado/media')
 

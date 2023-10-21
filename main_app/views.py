@@ -1,4 +1,5 @@
 # views.py en Django
+import json
 from .models import Trabajos_Clasificados
 import pandas as pd  
 from sklearn.model_selection import train_test_split  
@@ -15,10 +16,10 @@ import time
 from fake_useragent import UserAgent
 import time
 import datetime
-from .obb import Data_extract
+from .obb import DataExtract
 import openai
-from .keys.Keys import *
-openai.api_key = openia_key
+from .Keys.Keys import *
+openai.api_key = openai_api_key
 
 class ClasificadorTextViewSet(APIView):
     def get(self, request):
@@ -65,7 +66,6 @@ class ClasificadorTextViewSet(APIView):
         else: 
             return Response({'error': 'Parámetro "titulo" no proporcionado'}, status=status.HTTP_400_BAD_REQUEST)
 
-
 class BotGeneradorPruebas(APIView):
     def get(self, request):
         titulo = request.GET.get('titulo', None)
@@ -79,7 +79,7 @@ class BotGeneradorPruebas(APIView):
             chrome_options = Options()
             chrome_options.add_argument(f"--user-agent={user_agent}")
             chrome_options.add_argument ('--headless')
-            service = Service(executable_path=r".\main_app\chromedriver.exe")
+            service = Service(executable_path=executable_path_linux)
             driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.get('https://labs.perplexity.ai/')
             time.sleep(6)
@@ -89,11 +89,10 @@ class BotGeneradorPruebas(APIView):
 
             driver.find_element(By.XPATH,"//*[@id='lamma-select']/option[4]").click()
             time.sleep(3)
-            driver.find_element(By.XPATH,"//*[@id='__next']/main/div/div/div[2]/div[2]/div/div/div/div/div/div/div/div[3]/button").click()
-            time.sleep(3)
+            driver.find_element(By.XPATH,'/html/body/div/main/div/div/div[2]/div[2]/div/div/div/div/div/div/div/div[2]/div[2]/button').click()
+            time.sleep(20)
 
-
-            respuesta = driver.find_element(By.XPATH,'//*[@id="__next"]/main/div/div/div[1]/div/div[2]/div/div/div/div[3]/div/div/div[2]/div[1]/div[2]/div/span').text
+            respuesta = driver.find_element(By.XPATH,'/html/body/div/main/div/div/div[1]/div/div[2]/div/div/div/div[3]/div/div/div[2]/div[1]').text
             driver.quit()
             return Response({'resultados': respuesta}, status=status.HTTP_200_OK)
         
@@ -101,49 +100,64 @@ class BotGeneradorPruebas(APIView):
             
             return Response({'error': titulo}, status=status.HTTP_400_BAD_REQUEST)
             
-
 class WebScraping(APIView):
+
     def get(self, request):
-
         if request.method == 'GET':
-            #local date
-            hora = str(datetime.datetime.now())
-            #dia = str(datetime.today().date())
-
-            linkedin = Data_extract('https://www.linkedin.com/jobs/search?trk=guest_homepage-basic_guest_nav_menu_jobs&position=1&pageNum=0')
+            # Linkedin
+            linkedin = DataExtract('https://www.linkedin.com/jobs/search?trk=guest_homepage-basic_guest_nav_menu_jobs&position=1&pageNum=0')
             linkedin.ingresar_link()
-            time.sleep(2)
             linkedin.busqueda_id("job-search-bar-keywords").send_keys('Informatica')
-            time.sleep(2)
             linkedin.busqueda_id("job-search-bar-location").clear()
-            time.sleep(2)
             linkedin.busqueda_id("job-search-bar-location").send_keys('Colombia')
-            time.sleep(2)
             linkedin.busqueda_xpath("//*[@id='jobs-search-panel']/form/button").click()
-            time.sleep(2)
-
-            """
-            filtro de modalidad
-            linkedin.busqueda_xpath("//*[@id='jserp-filters']/ul/li[6]/div/div/button").click()
-            time.sleep(2)
-
-            #En caso de tener ventana emergentes:
-            linkedin.busqueda_id('f_E-1').click()
-            time.sleep(2)
-            linkedin.busqueda_id('f_E-3').click()
-            time.sleep(2)
-
-            linkedin.busqueda_xpath("//*[@id='jserp-filters']/ul/li[6]/div/div/div/button").click()
-            time.sleep(2)
-            """
-
-            linkedin.scroll_down(10,'/html')
-            time.sleep(2)
+            time.sleep(1)
+            linkedin.scroll_down_smoothly()
             linkedin.Obtener_perfiles('base-search-card__title','base-search-card__subtitle','job-search-card__location')
-            time.sleep(2)
             linkedin.Cerrar_drive()
+            #linkedin.Guardar_perfiles(f'/home/cscc/Documents/Proyects/Trabajo-de-grado/media/Resultados/Resultado_{hora}.csv')
+            data_linkedin=linkedin.Guardar_perfiles()
+
+            # El empleo
+            elempleo = DataExtract("https://www.elempleo.com/co/ofertas-empleo")
+            elempleo.ingresar_link()
+            elempleo.busqueda_xpath("/html/body/header/div/div[2]/div[2]/div/form/div/span/input[2]").send_keys("informática")
+            elempleo.busqueda_xpath("/html/body/header/div/div[2]/div[2]/div/form/div/button").click()
+            elempleo.scroll_down("/html")
+            elempleo.busqueda_xpath("/html/body/div[8]/div[3]/div[1]/div[4]/div/form/div/select").click() # Buscar
+            elempleo.busqueda_xpath("/html/body/div[8]/div[3]/div[1]/div[4]/div/form/div/select").click() # 100
+            elempleo.busqueda_xpath("/html/body/div[8]/div[3]/div[1]/div[4]/div/form/div/select").send_keys("100") # 100
             time.sleep(2)
-            data=linkedin.Guardar_df()
-            return Response(data, status=status.HTTP_200_OK)
-                    
-            
+            elempleo.Obtener_perfiles("js-offer-title", "info-company-name", "info-city")
+            data_elempleo = elempleo.Guardar_perfiles()
+
+            # Computrabajo
+            computrabajo = DataExtract("https://co.computrabajo.com/")
+            computrabajo.ingresar_link()
+            computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/div/div[1]/form/input[1]").send_keys("Informatica")
+            computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/div/div[2]/form/input[1]").send_keys("Colombia")
+            computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/button").click() # buscar
+            time.sleep(2)
+            computrabajo.click_banner_button("/html/body/main/div[2]/div[2]/div/button[1]")
+            time.sleep(1)
+            computrabajo.obtener_perfiles_paginados('js-o-link',3,'//*[@id="offersGridOfferContainer"]/div[8]/span[2]')
+            data_computrabajo= computrabajo.Guardar_perfiles_paginados()
+
+        # Parsea las respuestas JSON en objetos Python
+        data1 = json.loads(data_linkedin)
+        data2 = json.loads(data_computrabajo)
+        data3 = json.loads(data_elempleo)
+
+        # Combina los objetos en una nueva estructura de datos (por ejemplo, un diccionario)
+        combined_data = {}
+        combined_data.update(data1)
+        combined_data.update(data2)
+        combined_data.update(data3)
+
+        # Convierte la estructura de datos combinada en una cadena JSON
+        combined_json_str = json.dumps(combined_data, indent=2)
+
+        # Imprime la cadena JSON combinada
+        print(combined_json_str)
+
+        return Response(combined_json_str, status=status.HTTP_200_OK)

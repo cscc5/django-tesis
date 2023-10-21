@@ -7,7 +7,7 @@ class Command(BaseCommand):
     help = 'Import data from Excel to MyModel'
 
     def handle(self, *args, **kwargs):
-        excel_file_path = r'C:\Users\david\Downloads\trabajo_final_carrera\final\entrenamiento.csv'
+        excel_file_path = "/home/cscc/Documents/Proyects/Trabajo-de-grado/media/entrenamiento.csv" #r'C:\Users\david\Downloads\trabajo_final_carrera\final\entrenamiento.csv'
         data = pd.read_csv(excel_file_path, delimiter=',')
 
         for index, row in data.iterrows():
