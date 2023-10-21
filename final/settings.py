@@ -137,6 +137,8 @@ CORS_ALLOWED_ORIGINS = []
 
 
 #Librerias para despliegue
+
+# Configura la ruta donde se almacenarán los archivos estáticos recolectados
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_TMP = os.path.join(BASE_DIR, 'static')
 
