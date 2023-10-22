@@ -137,7 +137,7 @@ CORS_ALLOWED_ORIGINS = []
 
 
 
-"""
+
 #Librerias para despliegue
 
 # Configura la ruta donde se almacenarán los archivos estáticos recolectados
@@ -152,4 +152,3 @@ STATICFILES_DIR = (
 )
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-"""
