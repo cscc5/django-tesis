@@ -136,6 +136,8 @@ CORS_ALLOWED_ORIGINS = []
 #MEDIA_ROOT = os.path.join(BASE_DIR, '/home/cscc/Documents/Proyects/Trabajo-de-grado/media')
 
 
+
+"""
 #Librerias para despliegue
 
 # Configura la ruta donde se almacenarán los archivos estáticos recolectados
@@ -150,3 +152,4 @@ STATICFILES_DIR = (
 )
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+"""
