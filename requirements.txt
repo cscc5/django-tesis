@@ -30,7 +30,7 @@ click==8.1.7
 cloudpickle==2.0.0
 colorama==0.4.6
 comm==0.1.4
-command-not-found==0.3
+#command-not-found==0.3
 contourpy==1.1.1
 cookiecutter==2.4.0
 cryptography==3.4.8
