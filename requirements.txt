@@ -83,7 +83,6 @@ jupyterlab-pygments==0.1.2
 keyring==23.5.0
 kite==1.5.7
 kiwisolver==1.4.5
-language-selector==0.1
 launchpadlib==1.10.16
 lazr.restfulclient==0.14.4
 lazr.uri==1.0.6
@@ -260,3 +259,4 @@ zope.interface==6.1
 #distro-info==1.1+ubuntu0.1
 #duplicity==0.8.21
 #gpg==1.16.0
+#language-selector==0.1
