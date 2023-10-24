@@ -104,8 +104,8 @@ class DataExtract():
      
     def Guardar_perfiles(self):
         df_jobs = pd.DataFrame({'title': self.title, 'location': self.location, 'company': self.company})
-        return df_jobs.to_json(orient='split', index=False)
-    
+        return df_jobs.to_json(orient='split')
+
     def obtener_perfiles_paginados(self, dato, num, xpath):
         self.text_list = [[element.text for element in self.driver.find_elements(By.CLASS_NAME, dato)]]
         for i in range(num):
@@ -115,8 +115,8 @@ class DataExtract():
             
     def Guardar_perfiles_paginados(self):
         df_jobs = pd.DataFrame(self.text_list)
-        return df_jobs.to_json(orient="split", index=False)
-        
+        return df_jobs.to_json(orient='split')
+
     def switch_screen(self, num):
         return self.driver.switch_to.window(self.driver.window_handles[num])
 

@@ -15,7 +15,6 @@ from selenium.webdriver.common.by import By
 import time
 from fake_useragent import UserAgent
 import time
-import datetime
 from .obb import DataExtract
 import openai
 from .Keys.Keys import *
@@ -114,9 +113,7 @@ class WebScraping(APIView):
             time.sleep(1)
             linkedin.scroll_down_smoothly()
             linkedin.Obtener_perfiles('base-search-card__title','base-search-card__subtitle','job-search-card__location')
-            linkedin.Cerrar_drive()
-            #linkedin.Guardar_perfiles(f'/home/cscc/Documents/Proyects/Trabajo-de-grado/media/Resultados/Resultado_{hora}.csv')
-            data_linkedin=linkedin.Guardar_perfiles()
+            data_linkedin = linkedin.Guardar_perfiles()
 
             # El empleo
             elempleo = DataExtract("https://www.elempleo.com/co/ofertas-empleo")
@@ -138,26 +135,24 @@ class WebScraping(APIView):
             computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/div/div[2]/form/input[1]").send_keys("Colombia")
             computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/button").click() # buscar
             time.sleep(2)
-            computrabajo.click_banner_button("/html/body/main/div[2]/div[2]/div/button[1]")
-            time.sleep(1)
+            #computrabajo.click_banner_button("/html/body/main/div[2]/div[2]/div/button[1]")
+            #time.sleep(1)
             computrabajo.obtener_perfiles_paginados('js-o-link',3,'//*[@id="offersGridOfferContainer"]/div[8]/span[2]')
-            data_computrabajo= computrabajo.Guardar_perfiles_paginados()
+            data_computrabajo = computrabajo.Guardar_perfiles_paginados()
 
-        # Parsea las respuestas JSON en objetos Python
-        data1 = json.loads(data_linkedin)
-        data2 = json.loads(data_computrabajo)
-        data3 = json.loads(data_elempleo)
+            # Convertir los JSON a diccionarios de Python
+            dict_linkedin = json.loads(data_linkedin)
+            dict_computrabajo = json.loads(data_computrabajo)
+            dict_elempleo = json.loads(data_elempleo)
 
-        # Combina los objetos en una nueva estructura de datos (por ejemplo, un diccionario)
-        combined_data = {}
-        combined_data.update(data1)
-        combined_data.update(data2)
-        combined_data.update(data3)
+            # Combinar los diccionarios en uno solo
+            combined_data = {
+                "linkedin_data": dict_linkedin,
+                "computrabajo_data": dict_computrabajo,
+                "elempleo_data": dict_elempleo
+            }
 
-        # Convierte la estructura de datos combinada en una cadena JSON
-        combined_json_str = json.dumps(combined_data, indent=2)
+            # Convertir el resultado a JSON
+            result_json = json.dumps(combined_data)
 
-        # Imprime la cadena JSON combinada
-        print(combined_json_str)
-
-        return Response(combined_json_str, status=status.HTTP_200_OK)
+            return Response(result_json, status=status.HTTP_200_OK)
