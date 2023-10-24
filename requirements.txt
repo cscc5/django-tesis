@@ -57,7 +57,6 @@ fs==2.4.12
 future==0.18.2
 gast==0.5.2
 geojson==3.0.1
-gpg==1.16.0
 gunicorn==21.2.0
 h11==0.14.0
 helpdev==0.7.1
@@ -260,3 +259,4 @@ zope.interface==6.1
 #defer==1.0.6
 #distro-info==1.1+ubuntu0.1
 #duplicity==0.8.21
+#gpg==1.16.0
