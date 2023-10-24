@@ -244,6 +244,7 @@ yapf==0.40.2
 yarl==1.9.2
 zipp==1.0.0
 zope.interface==6.1
+cython==3.0.4
 #cupshelpers==1.0
 #apturl==0.5.2
 #Brlapi==0.8.3
