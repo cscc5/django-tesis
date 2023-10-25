@@ -1,14 +1,23 @@
 import time
 import platform
 import pandas as pd
+from io import BytesIO
 from selenium import webdriver
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
 from fake_useragent import UserAgent
+from django.http import HttpResponse
+from django.http import FileResponse
+from reportlab.platypus import PageBreak
+from reportlab.lib.pagesizes import letter
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
+from reportlab.platypus import SimpleDocTemplate, Paragraph
 from selenium.webdriver.support import expected_conditions as EC
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 class DataExtract():
 
@@ -50,7 +59,7 @@ class DataExtract():
             chrome_options = Options()
             chrome_options.add_argument("--start-maximized")
             chrome_options.add_argument(f"--user-agent={user_agent}")
-            chrome_options.add_argument ('--headless')
+            #chrome_options.add_argument ('--headless')
             self.servicio = Service(executable_path="/home/cscc/Documents/Projects/Trabajo-de-grado/media/chromedriver-linux64/chromedriver")
 
         self.driver = webdriver.Chrome(service=self.servicio,options=chrome_options)
@@ -101,7 +110,7 @@ class DataExtract():
         self.title = [element.text for element in self.driver.find_elements(By.CLASS_NAME, title)]
         self.location = [element.text for element in self.driver.find_elements(By.CLASS_NAME, location)]
         self.company = [element.text for element in self.driver.find_elements(By.CLASS_NAME, company)]
-     
+
     def Guardar_perfiles(self):
         df_jobs = pd.DataFrame({'title': self.title, 'location': self.location, 'company': self.company})
         return df_jobs.to_json(orient='split')
@@ -116,6 +125,9 @@ class DataExtract():
     def Guardar_perfiles_paginados(self):
         df_jobs = pd.DataFrame(self.text_list)
         return df_jobs.to_json(orient='split')
+    
+    def obtener_pruebas(self, xpath):
+        return self.driver.find_element(By.XPATH, xpath).text
 
     def switch_screen(self, num):
         return self.driver.switch_to.window(self.driver.window_handles[num])
@@ -147,3 +159,58 @@ class DataExtract():
             element.click()
         except Exception as e:
             print(f"Error al hacer clic en el botón del banner: {str(e)}")
+
+    def generar_pdf(selft, titulo, respuesta):
+        # Crear un objeto BytesIO para almacenar el PDF
+        buffer = BytesIO()
+
+        # Crear el objeto PDF con el contenido de respuesta
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+
+        # Definir un estilo de párrafo con formato
+        styles = getSampleStyleSheet()
+        style = styles["Normal"]
+        style.fontName = "Helvetica"  # Tipo de fuente
+        style.fontSize = 12  # Tamaño de la fuente
+        style.textColor = colors.black  # Color del texto
+
+        # Crear un estilo de título
+        title_style = styles["Title"]
+        title_style.fontName = "Helvetica-Bold"  # Tipo de fuente en negrita
+        title_style.fontSize = 16  # Tamaño de fuente del título
+        title_style.alignment = 1  # Alineación al centro
+
+        # Crear una lista de elementos del PDF
+        elements = []
+
+        # Agregar el título al PDF
+        title_text = f"Prueba técnica para: {titulo}."
+        title = Paragraph(title_text, title_style)
+        elements.append(title)
+
+        # Establecer un límite de líneas por página
+        lines_per_page = 40
+        line_count = 0
+
+        # Agregar el contenido de respuesta al PDF
+        text_lines = respuesta.split('\n')[2:-1] # Omitir las primeras 2 líneas
+        for line in text_lines:
+            p = Paragraph(line, style)
+            elements.append(p)
+            line_count += 1
+
+            if line_count >= lines_per_page:
+                elements.append(PageBreak())
+                line_count = 0
+
+        # Construir el PDF
+        doc.build(elements)
+
+        # Establecer la posición del búfer en el inicio
+        buffer.seek(0)
+
+        # Devolver el PDF como una respuesta HTTP en formato PDF descargable
+        response = HttpResponse(buffer.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename=" Prueba técnica para: {titulo}.pdf"'
+
+        return response

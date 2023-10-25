@@ -19,15 +19,7 @@ from .obb import DataExtract
 import openai
 from .Keys.Keys import *
 openai.api_key = openai_api_key
-from django.http import FileResponse
-from reportlab.pdfgen import canvas
-from django.http import HttpResponse
-from io import BytesIO
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.platypus import PageBreak
+
 
 class ClasificadorTextViewSet(APIView):
     def get(self, request):
@@ -79,80 +71,16 @@ class BotGeneradorPruebas(APIView):
         titulo = request.GET.get('titulo', None)
 
         if titulo:
-            ua = UserAgent()
-            user_agent = ua.random
-
-            chrome_options = Options()
-            chrome_options.add_argument(f"--user-agent={user_agent}")
-            chrome_options.add_argument('--headless')
-            service = Service(executable_path=executable_path_linux)
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-            driver.get('https://labs.perplexity.ai')
-            time.sleep(6)
-
-            driver.find_element(By.XPATH, '//*[@id="__next"]/main/div/div/div[2]/div[2]/div/div/div/div/div/div/div/div[1]/textarea').send_keys(f"Hacer una prueba técnica de 15 preguntas, para un {titulo} de tipo selección múltiple, en donde hay un enunciado y 4 posibles respuestas del enunciado, en donde solo una es la correcta.")
-            time.sleep(3)
-
-            driver.find_element(By.XPATH, '//*[@id="lamma-select"]/option[4]').click()
-            time.sleep(3)
-            driver.find_element(By.XPATH, '/html/body/div/main/div/div/div[2]/div[2]/div/div/div/div/div/div/div/div[2]/div[2]/button').click()
-            time.sleep(20)
-
-            respuesta = driver.find_element(By.XPATH, '/html/body/div/main/div/div/div[1]/div/div[2]/div/div/div/div[3]/div/div/div[2]/div[1]').text
-            driver.quit()
-
-            # Crear un objeto BytesIO para almacenar el PDF
-            buffer = BytesIO()
-
-            # Crear el objeto PDF con el contenido de respuesta
-            doc = SimpleDocTemplate(buffer, pagesize=letter)
-
-            # Definir un estilo de párrafo con formato
-            styles = getSampleStyleSheet()
-            style = styles["Normal"]
-            style.fontName = "Helvetica"  # Tipo de fuente
-            style.fontSize = 12  # Tamaño de la fuente
-            style.textColor = colors.black  # Color del texto
-
-            # Crear un estilo de título
-            title_style = styles["Title"]
-            title_style.fontName = "Helvetica-Bold"  # Tipo de fuente en negrita
-            title_style.fontSize = 16  # Tamaño de fuente del título
-            title_style.alignment = 1  # Alineación al centro
-
-            # Crear una lista de elementos del PDF
-            elements = []
-
-            # Agregar el título al PDF
-            title_text = f"Prueba técnica para: {titulo}."
-            title = Paragraph(title_text, title_style)
-            elements.append(title)
-
-            # Establecer un límite de líneas por página
-            lines_per_page = 40
-            line_count = 0
-
-            # Agregar el contenido de respuesta al PDF
-            text_lines = respuesta.split('\n')[2:]  # Omitir las primeras 2 líneas
-            for line in text_lines:
-                p = Paragraph(line, style)
-                elements.append(p)
-                line_count += 1
-
-                if line_count >= lines_per_page:
-                    elements.append(PageBreak())
-                    line_count = 0
-
-            # Construir el PDF
-            doc.build(elements)
-
-            # Establecer la posición del búfer en el inicio
-            buffer.seek(0)
-
-            # Devolver el PDF como una respuesta HTTP en formato PDF descargable
-            response = HttpResponse(buffer.read(), content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename=" Prueba técnica para: {titulo}.pdf"'
-
+            generar_pruebas=DataExtract("https://labs.perplexity.ai")
+            generar_pruebas.ingresar_link()
+            generar_pruebas.busqueda_xpath('//*[@id="__next"]/main/div/div/div[2]/div[2]/div/div/div/div/div/div/div/div[1]/textarea').send_keys(f"Hacer una prueba técnica de 15 preguntas, para un {titulo} de tipo selección múltiple, en donde hay un enunciado y 4 posibles respuestas del enunciado, en donde solo una es la correcta.")
+            generar_pruebas.busqueda_xpath('//*[@id="lamma-select"]/option[4]').click()
+            generar_pruebas.busqueda_xpath('/html/body/div/main/div/div/div[2]/div[2]/div/div/div/div/div/div/div/div[2]/div[2]/button').click()
+            time.sleep(60)
+            respuesta = generar_pruebas.obtener_pruebas('/html/body/div/main/div/div/div[1]/div/div[2]/div/div/div/div[3]/div/div/div[2]/div[1]')
+            generar_pruebas.Cerrar_drive()
+            print(respuesta)
+            response = generar_pruebas.generar_pdf(titulo, respuesta)
             return response
 
         else: 
