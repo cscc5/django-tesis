@@ -1,23 +1,24 @@
+import re
+import json
 import time
 import platform
 import pandas as pd
 from io import BytesIO
 from selenium import webdriver
+from unidecode import unidecode
 from reportlab.lib import colors
-from reportlab.pdfgen import canvas
 from fake_useragent import UserAgent
 from django.http import HttpResponse
-from django.http import FileResponse
 from reportlab.platypus import PageBreak
 from reportlab.lib.pagesizes import letter
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from reportlab.lib.styles import getSampleStyleSheet
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from reportlab.platypus import SimpleDocTemplate, Paragraph
 from selenium.webdriver.support import expected_conditions as EC
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 class DataExtract():
 
@@ -52,15 +53,15 @@ class DataExtract():
             chrome_options.add_argument("--start-maximized")
             chrome_options.add_argument(f"--user-agent={user_agent}")
             chrome_options.add_argument ('--headless')
-            self.servicio = Service(executable_path=r".\main_app\chromedriver.exe")
+            self.servicio = Service(executable_path=r".\drivers\chromedriver-windows64\chromedriver.exe") 
         else:
             ua = UserAgent()
             user_agent = ua.random
             chrome_options = Options()
             chrome_options.add_argument("--start-maximized")
             chrome_options.add_argument(f"--user-agent={user_agent}")
-            #chrome_options.add_argument ('--headless')
-            self.servicio = Service(executable_path="/home/cscc/Documents/Projects/Trabajo-de-grado/media/chromedriver-linux64/chromedriver")
+            chrome_options.add_argument ('--headless')
+            self.servicio = Service(executable_path="./drivers/chromedriver-linux64/chromedriver")
 
         self.driver = webdriver.Chrome(service=self.servicio,options=chrome_options)
 
@@ -214,3 +215,54 @@ class DataExtract():
         response['Content-Disposition'] = f'attachment; filename=" Prueba técnica para: {titulo}.pdf"'
 
         return response
+    
+    def combinar_json(self, data_linkedin, data_computrabajo, data_elempleo):
+            
+        # Convertir los JSON a diccionarios de Python
+        self.dict_linkedin = json.loads(data_linkedin)
+        self.dict_computrabajo = json.loads(data_computrabajo)
+        self.dict_elempleo = json.loads(data_elempleo)
+
+        # Combinar los diccionarios en uno solo
+        self.combined_data = {
+            "linkedin_data": self.dict_linkedin,
+            "computrabajo_data": self.dict_computrabajo,
+            "elempleo_data": self.dict_elempleo
+        }
+
+        # Convertir el resultado a JSON
+        combined_data = json.dumps(self.combined_data)
+        return combined_data
+
+    def obtener_title_perfiles(self, title):
+        self.title = [element.text for element in self.driver.find_elements(By.CLASS_NAME, title)]
+
+    def guardar_title_perfiles(self):
+        df_jobs = pd.DataFrame({"title": self.title})
+        df_jobs.to_csv(index=False, mode="w")  # Guardar como CSV
+        return df_jobs  # Devolver el DataFrame
+
+    def obtener_title_perfiles_paginados(self, dato, num, xpath):
+        self.text_list = []  # Inicializa la lista vacía
+        self.text_list.extend([element.text for element in self.driver.find_elements(By.CLASS_NAME, dato)])  
+
+        for i in range(num):
+            self.busqueda_xpath(xpath).click()
+            time.sleep(4)
+            self.text_list.extend([element.text for element in self.driver.find_elements(By.CLASS_NAME, dato)])  # Agrega los elementos de la siguiente página
+
+    def guardar_title_perfiles_paginados(self):
+        df_jobs = pd.DataFrame({"title": self.text_list})
+        df_jobs.to_csv(index=False, mode="w")  # Guardar como CSV
+        return df_jobs  # Devolver el DataFrame
+    
+    # Función para aplicar limpieza a cada celda del DataFrame
+    def limpiar_celda(celda):
+        if isinstance(celda, str):
+            # Eliminar caracteres que no sean letras o espacios en blanco
+            celda = re.sub(r'[^\w\s]', '', celda)
+            # Eliminar números
+            celda = re.sub(r'\d+', '', celda)
+            # Remover acentos y caracteres especiales
+            celda = unidecode(celda)
+        return celda

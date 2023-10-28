@@ -1,25 +1,20 @@
 # views.py en Django
+import re
 import json
-from .models import Trabajos_Clasificados
-import pandas as pd  
-from sklearn.model_selection import train_test_split  
-from sklearn.feature_extraction.text import CountVectorizer 
-from nltk.corpus import stopwords 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 import time
-from fake_useragent import UserAgent
-import time
-from .obb import DataExtract
 import openai
-from .Keys.Keys import *
-openai.api_key = openai_api_key
+import pandas as pd
+from .obb import DataExtract
+from unidecode import unidecode
+from rest_framework import status
+from nltk.corpus import stopwords 
+from Keys.Keys import openai_api_key
+from rest_framework.views import APIView
+from .models import Trabajos_Clasificados
+from rest_framework.response import Response
+from sklearn.feature_extraction.text import CountVectorizer 
 
+openai.api_key = openai_api_key
 
 class ClasificadorTextViewSet(APIView):
     def get(self, request):
@@ -59,11 +54,13 @@ class ClasificadorTextViewSet(APIView):
 
                 # Trabajos_Clasificados(titulo=titulo, clasificacion=predic[0]).save()       
                 return Response({'resultados': predic[0]}, status=status.HTTP_200_OK)
+
             else:
-                
+
                 return Response({'error': f'Parámetro {titulo} No coincide con el area de TI'}, status=status.HTTP_400_BAD_REQUEST)
-                
+
         else: 
+
             return Response({'error': 'Parámetro "titulo" no proporcionado'}, status=status.HTTP_400_BAD_REQUEST)
 
 class BotGeneradorPruebas(APIView):
@@ -73,35 +70,39 @@ class BotGeneradorPruebas(APIView):
         if titulo:
             generar_pruebas=DataExtract("https://labs.perplexity.ai")
             generar_pruebas.ingresar_link()
+            time.sleep(1)
             generar_pruebas.busqueda_xpath('//*[@id="__next"]/main/div/div/div[2]/div[2]/div/div/div/div/div/div/div/div[1]/textarea').send_keys(f"Hacer una prueba técnica de 15 preguntas, para un {titulo} de tipo selección múltiple, en donde hay un enunciado y 4 posibles respuestas del enunciado, en donde solo una es la correcta.")
             generar_pruebas.busqueda_xpath('//*[@id="lamma-select"]/option[4]').click()
             generar_pruebas.busqueda_xpath('/html/body/div/main/div/div/div[2]/div[2]/div/div/div/div/div/div/div/div[2]/div[2]/button').click()
             time.sleep(60)
             respuesta = generar_pruebas.obtener_pruebas('/html/body/div/main/div/div/div[1]/div/div[2]/div/div/div/div[3]/div/div/div[2]/div[1]')
             generar_pruebas.Cerrar_drive()
-            print(respuesta)
             response = generar_pruebas.generar_pdf(titulo, respuesta)
             return response
 
         else: 
 
             return Response({'error': titulo}, status=status.HTTP_400_BAD_REQUEST)
-      
+
 class WebScraping(APIView):
 
     def get(self, request):
         if request.method == 'GET':
-            # Linkedin
-            linkedin = DataExtract('https://www.linkedin.com/jobs/search?trk=guest_homepage-basic_guest_nav_menu_jobs&position=1&pageNum=0')
-            linkedin.ingresar_link()
-            linkedin.busqueda_id("job-search-bar-keywords").send_keys('Informatica')
-            linkedin.busqueda_id("job-search-bar-location").clear()
-            linkedin.busqueda_id("job-search-bar-location").send_keys('Colombia')
-            linkedin.busqueda_xpath("//*[@id='jobs-search-panel']/form/button").click()
+
+            # Computrabajo
+            computrabajo = DataExtract("https://co.computrabajo.com/")
+            computrabajo.ingresar_link()
+            computrabajo.click_banner_button("/html/body/div/div[1]/div/div[1]/div[2]/svg/path[1]")
+            computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/div/div[1]/form/input[1]").send_keys("Informatica")
+            computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/div/div[2]/form/input[1]").send_keys("Colombia")
+            time.sleep(2)
+            computrabajo.click_banner_button("/html/body/div/div[1]/div/div[1]/div[2]/svg/path[1]")
+            computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/button").click() # buscar
+            time.sleep(2)
+            computrabajo.click_banner_button("/html/body/main/div[2]/div[2]/div/button[1]")
             time.sleep(1)
-            linkedin.scroll_down_smoothly()
-            linkedin.Obtener_perfiles('base-search-card__title','base-search-card__subtitle','job-search-card__location')
-            data_linkedin = linkedin.Guardar_perfiles()
+            computrabajo.obtener_title_perfiles_paginados('js-o-link',3,'//*[@id="offersGridOfferContainer"]/div[8]/span[2]')
+            data_computrabajo = computrabajo.guardar_title_perfiles_paginados()
 
             # El empleo
             elempleo = DataExtract("https://www.elempleo.com/co/ofertas-empleo")
@@ -113,34 +114,55 @@ class WebScraping(APIView):
             elempleo.busqueda_xpath("/html/body/div[8]/div[3]/div[1]/div[4]/div/form/div/select").click() # 100
             elempleo.busqueda_xpath("/html/body/div[8]/div[3]/div[1]/div[4]/div/form/div/select").send_keys("100") # 100
             time.sleep(2)
-            elempleo.Obtener_perfiles("js-offer-title", "info-company-name", "info-city")
-            data_elempleo = elempleo.Guardar_perfiles()
+            elempleo.obtener_title_perfiles("js-offer-title")
+            data_elempleo = elempleo.guardar_title_perfiles()
 
-            # Computrabajo
-            computrabajo = DataExtract("https://co.computrabajo.com/")
-            computrabajo.ingresar_link()
-            computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/div/div[1]/form/input[1]").send_keys("Informatica")
-            computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/div/div[2]/form/input[1]").send_keys("Colombia")
-            computrabajo.busqueda_xpath("/html/body/main/div[2]/div/div/div/div[1]/button").click() # buscar
-            time.sleep(2)
-            #computrabajo.click_banner_button("/html/body/main/div[2]/div[2]/div/button[1]")
-            #time.sleep(1)
-            computrabajo.obtener_perfiles_paginados('js-o-link',3,'//*[@id="offersGridOfferContainer"]/div[8]/span[2]')
-            data_computrabajo = computrabajo.Guardar_perfiles_paginados()
+            # Linkedin
+            linkedin = DataExtract('https://www.linkedin.com/jobs/search?trk=guest_homepage-basic_guest_nav_menu_jobs&position=1&pageNum=0')
+            linkedin.ingresar_link()
+            linkedin.busqueda_id("job-search-bar-keywords").send_keys('Informatica')
+            linkedin.busqueda_id("job-search-bar-location").clear()
+            linkedin.busqueda_id("job-search-bar-location").send_keys('Colombia')
+            linkedin.busqueda_xpath("//*[@id='jobs-search-panel']/form/button").click()
+            time.sleep(1)
+            linkedin.scroll_down_smoothly()
+            linkedin.obtener_title_perfiles('base-search-card__title')
+            data_linkedin = linkedin.guardar_title_perfiles()
 
-            # Convertir los JSON a diccionarios de Python
-            dict_linkedin = json.loads(data_linkedin)
-            dict_computrabajo = json.loads(data_computrabajo)
-            dict_elempleo = json.loads(data_elempleo)
+            #result_json = linkedin.combinar_json(data_linkedin, data_computrabajo, data_elempleo)
 
-            # Combinar los diccionarios en uno solo
-            combined_data = {
-                "linkedin_data": dict_linkedin,
-                "computrabajo_data": dict_computrabajo,
-                "elempleo_data": dict_elempleo
-            }
+            # Unir los DataFrames en uno solo
+            data_frames = [data_linkedin, data_elempleo, data_computrabajo]
+            df = pd.concat(data_frames, ignore_index=True)
 
-            # Convertir el resultado a JSON
-            result_json = json.dumps(combined_data)
+            df = df.dropna(subset=['title']) # Eliminar filas con valores nulos en la columna 'title'
 
-            return Response(result_json, status=status.HTTP_200_OK)
+            df = df.map(lambda x: x.lower() if isinstance(x, str) else x) # Se pasa todo el df a minuscula
+
+            # Función para aplicar limpieza a cada celda del DataFrame
+            def limpiar_celda(celda):
+                if isinstance(celda, str):
+                    # Eliminar caracteres que no sean letras o espacios en blanco
+                    celda = re.sub(r'[^\w\s]', '', celda)
+                    # Eliminar números
+                    celda = re.sub(r'\d+', '', celda)
+                    # Remover acentos y caracteres especiales
+                    celda = unidecode(celda)
+                return celda
+    
+            # Se aplicar limpieza a cada celda del DataFrame
+            df = df.map(limpiar_celda)
+
+            conteo = df['title'].value_counts()
+
+            top_10 = conteo.head(10)
+
+            # Convierte los datos a un diccionario
+            top_10_dict = top_10.to_dict()
+
+            # Convierte el diccionario a formato JSON
+            json_data = json.dumps(top_10_dict, ensure_ascii=False, indent=4)
+
+            linkedin.Cerrar_drive()
+
+            return Response(json_data, status=status.HTTP_200_OK)

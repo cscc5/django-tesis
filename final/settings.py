@@ -166,4 +166,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = []
 
 # Ubicación de los archivos multimedia
-#MEDIA_ROOT = os.path.join(BASE_DIR, '/home/cscc/Documents/Proyects/Trabajo-de-grado/media')
+# MEDIA_ROOT = os.path.join(BASE_DIR, '/home/cscc/Documents/Proyects/Trabajo-de-grado/media')
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
