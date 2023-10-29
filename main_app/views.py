@@ -163,6 +163,22 @@ class WebScraping(APIView):
             # Convierte el diccionario a formato JSON
             json_data = json.dumps(top_10_dict, ensure_ascii=False, indent=4)
 
+            # Parsear el JSON
+            data = json.loads(json_data)
+
+            # Crear las listas 'titulo' y 'cantidad'
+            titulos = list(data.keys())
+            cantidades = list(data.values())
+
+            # Crear el nuevo JSON
+            json_front = {
+                "titulo": titulos,
+                "cantidad": cantidades
+            }
+
+            # Convertir el nuevo JSON a una cadena JSON
+            #nuevo_json_str = json.dumps(json_front, indent=4)
+
             linkedin.Cerrar_drive()
 
-            return Response(json_data, status=status.HTTP_200_OK)
+            return Response(json_front, status=status.HTTP_200_OK)
