@@ -14,6 +14,7 @@ from .models import Trabajos_Clasificados
 from rest_framework.response import Response
 from sklearn.feature_extraction.text import CountVectorizer 
 
+# assigning API KEY to initialize openai environment
 openai.api_key = openai_api_key
 
 class ClasificadorTextViewSet(APIView):
@@ -182,3 +183,30 @@ class WebScraping(APIView):
             linkedin.Cerrar_drive()
 
             return Response(json_front, status=status.HTTP_200_OK)
+
+class BotGeneradorPruebasOpenai(APIView):
+    def get(self, request):
+        titulo = request.GET.get('titulo', None)
+        generar_pruebas=DataExtract("https://platform.openai.com/")
+
+        if titulo:
+
+            response = openai.ChatCompletion.create(
+            model="gpt-4-0613",
+            messages=[
+                    {"role": "system", "content": "Hello"},
+                    {"role": "user", "content": f"""
+                    Hacer una prueba técnica de 15 preguntas, para un {titulo} de tipo selección múltiple, en donde hay un enunciado y 4 posibles respuestas del enunciado, en donde solo una es la correcta."""
+                    }
+                ]
+            )
+
+            respuesta = response['choices'][0]['message']['content']
+
+            pdf = generar_pruebas.generar_pdf(titulo, respuesta)
+
+            return pdf
+
+        else: 
+
+            return Response({'error': titulo}, status=status.HTTP_400_BAD_REQUEST)
